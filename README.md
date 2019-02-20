@@ -1,6 +1,116 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
    
+
+### Using Previous Path Points
+- starts the new path with whatever previous path points were left over from the last cycle. 
+- Then we append newwaypoints, until the new path has 50 total waypoints.
+- ensures that there is a **smooth transition**
+- the less the new path will reflect **dynamic changes** in the environment
+- Ideally, we might only **use a few waypoints from the previous path**
+
+### Timing
+- using previous path data becomes even more important when higher latency is involved
+
+### Setting Point Paths with Latency
+- The simulator actually expects the received path to be a little out of date compared to where the car is, and the simulator will consider which point on the received path is closest to the car and adjust appropriately.
+
+## Helper
+
+### Converting Frenet Coordinates
+```cpp
+// Transform from Frenet s,d coordinates to Cartesian x,y
+vector<double> getXY(double s, double d, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y)
+{
+	int prev_wp = -1;
+
+	while(s > maps_s[prev_wp+1] && (prev_wp < (int)(maps_s.size()-1) ))
+	{
+		prev_wp++;
+	}
+
+	int wp2 = (prev_wp+1)%maps_x.size();
+
+	double heading = atan2((maps_y[wp2]-maps_y[prev_wp]),(maps_x[wp2]-maps_x[prev_wp]));
+	// the x,y,s along the segment
+	double seg_s = (s-maps_s[prev_wp]);
+
+	double seg_x = maps_x[prev_wp]+seg_s*cos(heading);
+	double seg_y = maps_y[prev_wp]+seg_s*sin(heading);
+
+	double perp_heading = heading-pi()/2;
+
+	double x = seg_x + d*cos(perp_heading);
+	double y = seg_y + d*sin(perp_heading);
+
+	return {x,y};
+}
+```
+
+### Interpolating Points
+```cpp
+vector<double> interpolate_points(vector<double> pts_x, vector<double> pts_y, 
+                                  vector<double> eval_at_x) {
+  // uses the spline library to interpolate points connecting a series of x and y values
+  // output is spline evaluated at each eval_at_x point
+
+  if (pts_x.size() != pts_y.size()) {
+    cout << "ERROR! SMOOTHER: interpolate_points size mismatch between pts_x and pts_y" << endl;
+    return { 0 };
+  }
+
+  tk::spline s;
+  s.set_points(pts_x,pts_y);    // currently it is required that X is already sorted
+  vector<double> output;
+  for (double x: eval_at_x) {
+    output.push_back(s(x));
+  }
+  return output;
+}
+```
+
+### getFrenet
+```cpp
+// Transform from Cartesian x,y coordinates to Frenet s,d coordinates
+vector<double> getFrenet(double x, double y, double theta, vector<double> maps_x, vector<double> maps_y, vector<double> maps_s)
+{
+	int next_wp = NextWaypoint(x,y, theta, maps_x,maps_y);
+	int prev_wp;
+	prev_wp = next_wp-1;
+	if(next_wp == 0)
+	{
+		prev_wp  = maps_x.size()-1;
+	}
+	double n_x = maps_x[next_wp]-maps_x[prev_wp];
+	double n_y = maps_y[next_wp]-maps_y[prev_wp];
+	double x_x = x - maps_x[prev_wp];
+	double x_y = y - maps_y[prev_wp];
+	// find the projection of x onto n
+	double proj_norm = (x_x*n_x+x_y*n_y)/(n_x*n_x+n_y*n_y);
+	double proj_x = proj_norm*n_x;
+	double proj_y = proj_norm*n_y;
+	double frenet_d = distance(x_x,x_y,proj_x,proj_y);
+	//see if d value is positive or negative by comparing it to a center point
+	double center_x = 1000-maps_x[prev_wp];
+	double center_y = 2000-maps_y[prev_wp];
+	double centerToPos = distance(center_x,center_y,x_x,x_y);
+	double centerToRef = distance(center_x,center_y,proj_x,proj_y);
+	if(centerToPos <= centerToRef)
+	{
+		frenet_d *= -1;
+	}
+	// calculate s value
+	double frenet_s = maps_s[0];
+	for(int i = 0; i < prev_wp; i++)
+	{
+		frenet_s += distance(maps_x[i],maps_y[i],maps_x[i+1],maps_y[i+1]);
+	}
+	frenet_s += distance(0,0,proj_x,proj_y);
+	return {frenet_s,frenet_d};
+}
+```
+----------------------------------------------------------------------------------------------------------------------------------
+
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases/tag/T3_v1.2).  
 
