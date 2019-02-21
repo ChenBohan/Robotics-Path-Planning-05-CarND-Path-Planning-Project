@@ -1,6 +1,8 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
    
+## Planning
+
 
 ### Using Previous Path Points
 - starts the new path with whatever previous path points were left over from the last cycle. 
@@ -15,7 +17,32 @@ Self-Driving Car Engineer Nanodegree Program
 ### Setting Point Paths with Latency
 - The simulator actually expects the received path to be a little out of date compared to where the car is, and the simulator will consider which point on the received path is closest to the car and adjust appropriately.
 
-## Helper
+### Drive straight
+we pass ``next_x_vals``, and ``next_y_vals`` to the simulator
+```cpp
+    double dist_inc = 0.5;
+    for(int i = 0; i < 50; i++)
+    {
+          next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
+          next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
+    }
+```
+
+### Drive inlane
+```cpp
+    double dist_inc = 0.5;
+    for(int i = 0; i < 50; i++)
+    {
+          double next_s = car_s+(i+1)*dist_inc;
+	  double next_d = 6;
+	  vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+	  next_x_vals.push_back(xy[0]);
+          next_y_vals.push_back(xy[1]);
+    }
+```
+
+
+## Help.h
 
 ### Converting Frenet Coordinates
 ```cpp
